@@ -128,6 +128,7 @@ def create_app() -> FastAPI:
         allow_origins=[
             "http://localhost:3000",
             "https://*.vercel.app",
+            "https://dashboard-iota-tan-86.vercel.app",
         ],
         allow_credentials=True,
         allow_methods=["*"],
