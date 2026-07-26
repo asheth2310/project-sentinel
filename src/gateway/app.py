@@ -28,6 +28,7 @@ from src.gateway.middleware import CircuitBreakerMiddleware
 from src.gateway.rate_limiter import RateLimiter
 from src.gateway.redis_service import RedisService
 from src.gateway.routes import router as telemetry_router
+from src.gateway.health import router as health_router
 from src.gateway.validation import register_validation_handler
 
 logger = logging.getLogger(__name__)
@@ -35,39 +36,56 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Manage service lifecycle: start/stop Kafka, Redis, and buffer on app startup/shutdown."""
+    """Manage service lifecycle: start/stop Kafka, Redis, and buffer on app startup/shutdown.
+
+    Services that fail to connect will log warnings but won't prevent startup.
+    This allows the gateway to run in degraded mode when dependencies are unavailable.
+    """
     settings = get_settings()
+    kafka_producer = None
+    redis_service = None
 
-    # Initialize Kafka producer
-    kafka_producer = KafkaProducerService(settings.kafka)
-    await kafka_producer.start()
-    set_kafka_producer(kafka_producer)
+    # Initialize Kafka producer (non-fatal if unavailable)
+    try:
+        kafka_producer = KafkaProducerService(settings.kafka)
+        await kafka_producer.start()
+        set_kafka_producer(kafka_producer)
+        logger.info("Kafka producer started")
+    except Exception as exc:
+        logger.warning("Kafka unavailable, running in degraded mode: %s", exc)
 
-    # Initialize Redis service
-    redis_service = RedisService(settings.redis)
-    await redis_service.start()
-    set_redis_service(redis_service)
+    # Initialize Redis service (non-fatal if unavailable)
+    try:
+        redis_service = RedisService(settings.redis)
+        await redis_service.start()
+        set_redis_service(redis_service)
+        logger.info("Redis service started")
+    except Exception as exc:
+        logger.warning("Redis unavailable, running in degraded mode: %s", exc)
 
     # Initialize event buffer for Kafka failure fallback
     event_buffer = EventBuffer(max_size=settings.kafka.buffer_max_events)
     set_event_buffer(event_buffer)
 
-    # Initialize circuit breaker middleware
-    cb_service = CircuitBreakerService(redis_service)
-    cb_middleware = CircuitBreakerMiddleware(cb_service)
-    set_circuit_breaker_middleware(cb_middleware)
+    # Initialize circuit breaker middleware (uses Redis, graceful if unavailable)
+    if redis_service:
+        cb_service = CircuitBreakerService(redis_service)
+        cb_middleware = CircuitBreakerMiddleware(cb_service)
+        set_circuit_breaker_middleware(cb_middleware)
 
-    # Initialize rate limiter (per-agent and per-organization sliding windows)
-    rate_limiter = RateLimiter(redis_service)
-    set_rate_limiter(rate_limiter)
+        # Initialize rate limiter (per-agent and per-organization sliding windows)
+        rate_limiter = RateLimiter(redis_service)
+        set_rate_limiter(rate_limiter)
 
     logger.info("Ingestion gateway services started")
 
     yield
 
     # Shutdown services
-    await kafka_producer.stop()
-    await redis_service.stop()
+    if kafka_producer:
+        await kafka_producer.stop()
+    if redis_service:
+        await redis_service.stop()
     logger.info("Ingestion gateway services stopped")
 
 
@@ -105,6 +123,7 @@ def create_app() -> FastAPI:
 
     # Register routers
     app.include_router(telemetry_router)
+    app.include_router(health_router)
 
     return app
 
