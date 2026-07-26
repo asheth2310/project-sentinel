@@ -81,6 +81,7 @@ def _valid_anomaly_data(**overrides) -> dict:
         "org_id": uuid4(),
         "anomaly_type": AnomalyType.TOKEN_SPIKE,
         "severity": Severity.HIGH,
+        "detected_at": now,
         "window_start": now,
         "window_end": now,
         "metric_value": 3.5,
@@ -103,11 +104,11 @@ class TestAnomalyEventDefaults:
         event2 = AnomalyEvent(**_valid_anomaly_data())
         assert event1.anomaly_id != event2.anomaly_id
 
-    def test_detected_at_defaults_to_utcnow(self):
-        before = datetime.now(timezone.utc)
-        event = AnomalyEvent(**_valid_anomaly_data())
-        after = datetime.now(timezone.utc)
-        assert before <= event.detected_at <= after
+    def test_detected_at_is_required(self):
+        data = _valid_anomaly_data()
+        del data["detected_at"]
+        with pytest.raises(ValidationError):
+            AnomalyEvent(**data)
 
     def test_metadata_defaults_to_empty_dict(self):
         event = AnomalyEvent(**_valid_anomaly_data())
@@ -196,3 +197,8 @@ class TestAnomalyEventValidation:
     def test_invalid_uuid_rejected(self):
         with pytest.raises(ValidationError):
             AnomalyEvent(**_valid_anomaly_data(agent_id="not-a-uuid"))
+
+    def test_frozen_model_rejects_mutation(self):
+        event = AnomalyEvent(**_valid_anomaly_data())
+        with pytest.raises(ValidationError):
+            event.severity = Severity.LOW

@@ -4,7 +4,7 @@ Defines GovernancePolicy, ThresholdConfig, NotificationChannel, and
 CircuitBreakerState models with validation rules per Requirements 8 and 10.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
@@ -80,8 +80,8 @@ class ThresholdConfig(BaseModel):
         description="Evaluation window duration in seconds. Must be > 0.",
     )
     cooldown_seconds: int = Field(
-        ge=0,
-        description="Cooldown period in seconds before re-evaluation. Must be >= 0.",
+        gt=0,
+        description="Cooldown period in seconds before re-evaluation. Must be > 0.",
     )
 
     @model_validator(mode="after")
@@ -116,12 +116,12 @@ class GovernancePolicy(BaseModel):
         default=True,
         description="Whether automatic kill-switch activation is enabled (Requirement 8.5).",
     )
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+    created_at: datetime | None = Field(
+        default=None,
         description="Policy creation timestamp.",
     )
-    updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+    updated_at: datetime | None = Field(
+        default=None,
         description="Policy last update timestamp.",
     )
 

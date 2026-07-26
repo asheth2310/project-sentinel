@@ -6,7 +6,9 @@ from src.config.settings import (
     DatabaseSettings,
     GovernanceSettings,
     KafkaSettings,
+    NotificationSettings,
     RedisSettings,
+    SecuritySettings,
     Settings,
     get_settings,
 )
@@ -17,7 +19,9 @@ __all__ = [
     "DatabaseSettings",
     "GovernanceSettings",
     "KafkaSettings",
+    "NotificationSettings",
     "RedisSettings",
+    "SecuritySettings",
     "Settings",
     "get_settings",
 ]

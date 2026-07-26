@@ -1,14 +1,14 @@
 """Anomaly event models and enums for Project Sentinel."""
 
-from datetime import datetime, timezone
-from enum import StrEnum
+from datetime import datetime
+from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
 
 
-class AnomalyType(StrEnum):
+class AnomalyType(str, Enum):
     """Enumeration of detectable anomaly types."""
 
     TOKEN_SPIKE = "token_spike"
@@ -18,7 +18,7 @@ class AnomalyType(StrEnum):
     COST_RUNAWAY = "cost_runaway"
 
 
-class Severity(StrEnum):
+class Severity(str, Enum):
     """Severity levels with ordering: LOW < MEDIUM < HIGH < CRITICAL.
 
     Supports comparison operators for severity-based logic.
@@ -65,17 +65,19 @@ class AnomalyEvent(BaseModel):
 
     Produced by the anomaly detection engine when metrics exceed
     configured thresholds (token spikes, infinite loops, prompt cascades).
+
+    This model is frozen (immutable) - anomaly events are facts that
+    should not be modified after creation.
     """
+
+    model_config = {"frozen": True}
 
     anomaly_id: UUID = Field(default_factory=uuid4, description="Unique identifier for this anomaly event")
     agent_id: UUID = Field(..., description="ID of the agent that triggered the anomaly")
     org_id: UUID = Field(..., description="Organization the agent belongs to")
     anomaly_type: AnomalyType = Field(..., description="Type of anomaly detected")
     severity: Severity = Field(..., description="Severity level of the anomaly")
-    detected_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
-        description="Timestamp when the anomaly was detected",
-    )
+    detected_at: datetime = Field(..., description="Timestamp when the anomaly was detected")
     window_start: datetime = Field(..., description="Start of the sliding window that detected the anomaly")
     window_end: datetime = Field(..., description="End of the sliding window that detected the anomaly")
     metric_value: float = Field(..., description="Measured metric value that triggered the anomaly")

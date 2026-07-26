@@ -1,7 +1,7 @@
 """Telemetry data models for Project Sentinel."""
 
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional
 from uuid import UUID, uuid4
@@ -31,7 +31,9 @@ class TelemetryEvent(BaseModel):
     @classmethod
     def validate_cost_precision(cls, v: Decimal) -> Decimal:
         """Ensure total_cost has at most 6 decimal places."""
-        if v.as_tuple().exponent is not None and abs(int(v.as_tuple().exponent)) > 6:
+        exponent = v.as_tuple().exponent
+        # Only check negative exponents (digits after the decimal point)
+        if isinstance(exponent, int) and exponent < -6:
             raise ValueError("total_cost must have at most 6 decimal places")
         return v
 
@@ -42,8 +44,6 @@ class TelemetryEvent(BaseModel):
         now = datetime.now(timezone.utc)
         if v.tzinfo is None:
             v = v.replace(tzinfo=timezone.utc)
-        from datetime import timedelta
-
         if v > now + timedelta(minutes=5):
             raise ValueError("timestamp must not be more than 5 minutes in the future")
         return v

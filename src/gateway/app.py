@@ -12,6 +12,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from src.config.settings import get_settings
 from src.gateway.circuit_breaker import CircuitBreakerService
@@ -120,6 +121,18 @@ def create_app() -> FastAPI:
 
     # Register custom validation error handler (Requirement 1.4)
     register_validation_handler(app)
+
+    # CORS middleware for Vercel-hosted dashboard
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://localhost:3000",
+            "https://*.vercel.app",
+        ],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     # Register routers
     app.include_router(telemetry_router)

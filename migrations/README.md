@@ -21,11 +21,13 @@ psql -h localhost -U sentinel -d sentinel_db -f migrations/004_audit_log.sql
 psql -h localhost -U sentinel -d sentinel_db -f migrations/005_anomaly_events.sql
 ```
 
-Or use the migration runner script:
+Or use the migration runner script (tracks applied migrations in `schema_migrations` table):
 
 ```bash
 python migrations/run_migrations.py
 ```
+
+The runner will skip already-applied migrations and only execute pending ones.
 
 ## Migration Descriptions
 

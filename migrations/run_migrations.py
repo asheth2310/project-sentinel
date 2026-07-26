@@ -37,8 +37,24 @@ def get_migration_files() -> list[Path]:
     return files
 
 
+def ensure_migrations_table(cursor) -> None:
+    """Create the schema_migrations tracking table if it doesn't exist."""
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+            filename TEXT PRIMARY KEY,
+            applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+    """)
+
+
+def get_applied_migrations(cursor) -> set[str]:
+    """Get the set of already-applied migration filenames."""
+    cursor.execute("SELECT filename FROM schema_migrations ORDER BY filename;")
+    return {row[0] for row in cursor.fetchall()}
+
+
 def run_migrations():
-    """Execute all migration files in order."""
+    """Execute all pending migration files in order."""
     params = get_connection_params()
     migration_files = get_migration_files()
 
@@ -57,11 +73,30 @@ def run_migrations():
 
     cursor = conn.cursor()
 
-    for migration_file in migration_files:
+    # Ensure tracking table exists
+    ensure_migrations_table(cursor)
+    applied = get_applied_migrations(cursor)
+
+    pending = [f for f in migration_files if f.name not in applied]
+
+    if not pending:
+        print("All migrations already applied.")
+        cursor.close()
+        conn.close()
+        return
+
+    print(f"Found {len(pending)} pending migration(s).")
+
+    for migration_file in pending:
         print(f"Running {migration_file.name}...")
         try:
             sql = migration_file.read_text(encoding="utf-8")
             cursor.execute(sql)
+            # Record successful migration
+            cursor.execute(
+                "INSERT INTO schema_migrations (filename) VALUES (%s);",
+                (migration_file.name,),
+            )
             print(f"  ✓ {migration_file.name} applied successfully")
         except psycopg2.Error as e:
             print(f"  ✗ {migration_file.name} failed: {e}")
@@ -71,7 +106,7 @@ def run_migrations():
 
     cursor.close()
     conn.close()
-    print("\nAll migrations applied successfully.")
+    print(f"\nAll {len(pending)} migration(s) applied successfully.")
 
 
 if __name__ == "__main__":

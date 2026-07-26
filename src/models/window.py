@@ -41,3 +41,4 @@ class WindowState:
     token_growth_rate: float = 0.0
     consecutive_identical_calls: int = 0
     last_tool_name: Optional[str] = None
+    token_sum_squares: float = 0.0

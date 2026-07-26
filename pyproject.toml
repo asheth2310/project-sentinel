@@ -23,12 +23,12 @@ classifiers = [
 ]
 dependencies = [
     "fastapi>=0.104",
-    "uvicorn>=0.24",
-    "confluent-kafka>=2.3",
-    "redis[hiredis]>=5.0",
-    "psycopg[binary]>=3.1",
+    "uvicorn[standard]>=0.24",
     "pydantic>=2.5",
     "pydantic-settings>=2.1",
+    "aiokafka>=0.9",
+    "redis[hiredis]>=5.0",
+    "asyncpg>=0.29",
     "httpx>=0.25",
 ]
 
@@ -39,6 +39,7 @@ dev = [
     "pytest-cov>=4.1",
     "hypothesis>=6.92",
     "ruff>=0.1",
+    "httpx>=0.25",
 ]
 
 [project.urls]
